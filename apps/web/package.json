@@ -1,0 +1,37 @@
+{
+  "name": "nitisetu-web",
+  "dependencies": {
+    "next": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "@anthropic-ai/sdk": "latest",
+    "@supabase/supabase-js": "latest",
+    "@supabase/ssr": "latest",
+    "@tanstack/react-query": "latest",
+    "zustand": "latest",
+    "react-dropzone": "latest",
+    "react-pdf": "latest",
+    "react-diff-viewer-continued": "latest",
+    "react-syntax-highlighter": "latest",
+    "@radix-ui/react-dialog": "latest",
+    "@radix-ui/react-tabs": "latest",
+    "@radix-ui/react-progress": "latest",
+    "recharts": "latest",
+    "lucide-react": "latest",
+    "framer-motion": "latest",
+    "clsx": "latest",
+    "tailwind-merge": "latest",
+    "sonner": "latest",
+    "date-fns": "latest",
+    "tailwindcss": "latest",
+    "postcss": "latest",
+    "autoprefixer": "latest",
+    "@tailwindcss/typography": "latest"
+  },
+  "devDependencies": {
+    "typescript": "latest",
+    "@types/node": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest"
+  }
+}

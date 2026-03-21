@@ -1,0 +1,114 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;0,600;1,400&family=DM+Sans:wght@300;400;500;600;700&family=Crimson+Pro:wght@400;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* NitiSetu Design System — Refined Institutional Dark */
+  --bg-void: #060810;
+  --bg-base: #0B0F1A;
+  --bg-surface: #111827;
+  --bg-elevated: #1A2235;
+  --bg-overlay: #1F2D45;
+  
+  --border-subtle: rgba(255,255,255,0.06);
+  --border-default: rgba(255,255,255,0.10);
+  --border-strong: rgba(255,255,255,0.18);
+  
+  /* Amber/Gold accent — the "niti" gold of Indian regulatory gravitas */
+  --accent-primary: #F59E0B;
+  --accent-hover: #FBBF24;
+  --accent-muted: rgba(245,158,11,0.12);
+  --accent-border: rgba(245,158,11,0.30);
+  
+  /* Semantic colours */
+  --success: #10B981;
+  --success-muted: rgba(16,185,129,0.12);
+  --warning: #F59E0B;
+  --warning-muted: rgba(245,158,11,0.12);
+  --danger: #EF4444;
+  --danger-muted: rgba(239,68,68,0.12);
+  --info: #3B82F6;
+  --info-muted: rgba(59,130,246,0.12);
+
+  /* Severity colors */
+  --severity-death: #DC2626;
+  --severity-life-threatening: #EA580C;
+  --severity-hospitalization: #D97706;
+  --severity-disability: #2563EB;
+  --severity-congenital: #7C3AED;
+  --severity-other: #059669;
+
+  /* Typography */
+  --font-display: 'DM Sans', sans-serif;
+  --font-body: 'DM Sans', sans-serif;
+  --font-mono: 'IBM Plex Mono', monospace;
+  --font-serif: 'Crimson Pro', serif;
+}
+
+* {
+  border-color: var(--border-default);
+}
+
+body {
+  background-color: var(--bg-void);
+  color: #E2E8F0;
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Grain texture overlay */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.025;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E");
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: var(--bg-base); }
+::-webkit-scrollbar-thumb { background: var(--bg-overlay); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: var(--accent-primary); }
+
+/* Mono utility */
+.font-mono { font-family: var(--font-mono); }
+.font-serif { font-family: var(--font-serif); }
+
+/* Animated gradient border */
+@keyframes borderGlow {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.8; }
+}
+
+.border-glow {
+  position: relative;
+}
+.border-glow::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background: linear-gradient(135deg, var(--accent-primary), transparent 60%);
+  animation: borderGlow 3s ease-in-out infinite;
+  z-index: -1;
+}
+
+/* Status dot */
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.status-dot.processing {
+  background: var(--accent-primary);
+  animation: pulse 1.5s infinite;
+}
+.status-dot.completed { background: var(--success); }
+.status-dot.failed { background: var(--danger); }
+.status-dot.pending { background: #64748B; }

@@ -1,20 +1,35 @@
 "use client";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { FileSearch, AlignLeft, Info } from "lucide-react";
 import { api } from "@/lib/api";
 import { DocumentSelector } from "@/components/shared/DocumentSelector";
 import { toast } from "sonner";
+import DOMPurify from "dompurify";
+import { ProcessingOverlay } from "@/components/shared/ProcessingOverlay";
 
 export default function SummarizationPage() {
   const [docId, setDocId] = useState<string | null>(null);
-  const [sourceType, setSourceType] = useState<string>("sae_narrative");
+  const [sourceType, setSourceType] = useState<string>("sae_narration");
   const [result, setResult] = useState<any>(null);
+  const [jobStatus, setJobStatus] = useState<string>("idle");
+  const [jobProgress, setJobProgress] = useState<number>(0);
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+    };
+  }, []);
 
   const summarizeMutation = useMutation({
-    mutationFn: () => api.post("/api/summarization/process", { document_id: docId, source_type: sourceType }),
+    mutationFn: () => api.post("/api/summarize/process", { 
+      document_id: docId, 
+      source_type: sourceType 
+    }),
     onSuccess: (data) => {
       if (data.job_id) {
+        setJobStatus("pending");
         pollJob(data.job_id);
       } else {
         setResult(data);
@@ -23,21 +38,39 @@ export default function SummarizationPage() {
     onError: () => toast.error("Summarization failed")
   });
 
-  const pollJob = async (jobId: string) => {
-    const poll = setInterval(async () => {
-      const job = await api.get(`/api/jobs/${jobId}`);
-      if (job.status === "completed") {
-        clearInterval(poll);
-        setResult(job.result);
-      } else if (job.status === "failed") {
-        clearInterval(poll);
-        toast.error(job.error);
+  const pollJob = (jobId: string) => {
+    if (pollingRef.current) clearInterval(pollingRef.current);
+    
+    pollingRef.current = setInterval(async () => {
+      try {
+        const job = await api.get(`/api/jobs/${jobId}`);
+        setJobStatus(job.status);
+        setJobProgress(job.progress || 0);
+
+        if (job.status === "completed") {
+          if (pollingRef.current) clearInterval(pollingRef.current);
+          setResult(job.result);
+          toast.success("Summary generated");
+        } else if (job.status === "failed") {
+          if (pollingRef.current) clearInterval(pollingRef.current);
+          toast.error(job.error || "Processing failed");
+        }
+      } catch (err) {
+        if (pollingRef.current) clearInterval(pollingRef.current);
+        toast.error("Lost connection to processing engine");
       }
     }, 2000);
   };
 
   return (
     <div className="p-8 h-full flex flex-col">
+      <ProcessingOverlay 
+        isVisible={jobStatus === "processing" || jobStatus === "pending"}
+        title="Summarising Case..."
+        progress={jobProgress}
+        statusMessage={jobProgress < 30 ? "Initializing AI Engine" : jobProgress < 80 ? "Extracting Context" : "Synthesizing Regulatory Findings"}
+        color="info"
+      />
       <div className="mb-8 flex-shrink-0">
         <h1 style={{ fontFamily: 'var(--font-mono)', fontSize: 20, fontWeight: 600, color: '#F1F5F9' }}>
           Document Summarisation
@@ -66,9 +99,9 @@ export default function SummarizationPage() {
               className="w-full bg-black/50 border rounded-lg p-3 text-sm text-slate-200 outline-none"
               style={{ borderColor: 'var(--border-subtle)' }}
             >
-              <option value="sae_narrative">SAE Narrative</option>
-              <option value="clinical_trial_protocol">Clinical Trial Protocol</option>
-              <option value="inspection_report">Inspection Report</option>
+              <option value="sae_narration">SAE Narration</option>
+              <option value="sugam_checklist">SUGAM Checklist</option>
+              <option value="meeting_transcript">Meeting Transcript</option>
               <option value="general">General Regulatory Document</option>
             </select>
           </div>
@@ -122,11 +155,69 @@ export default function SummarizationPage() {
                   Generated Summary
                 </h3>
               </div>
-              <div className="p-6 overflow-y-auto">
-                  <div 
-                    className="prose prose-invert max-w-none text-slate-300 text-sm leading-relaxed custom-markdown"
-                    dangerouslySetInnerHTML={{ __html: result.summary_html }}
-                  />
+              <div className="p-6 overflow-y-auto space-y-8">
+                  {/* Executive Summary */}
+                  <section>
+                    <h4 className="flex items-center gap-2 mb-3 px-3 py-1.5 rounded bg-blue-500/10 border border-blue-500/20 text-blue-400 font-mono text-[10px] uppercase tracking-widest w-fit">
+                      <AlignLeft size={12} />
+                      Executive Summary
+                    </h4>
+                    <p className="text-slate-300 text-sm leading-relaxed whitespace-pre-wrap">
+                      {result.executive_summary}
+                    </p>
+                  </section>
+
+                  {/* Key Findings */}
+                  <div className="grid grid-cols-2 gap-8">
+                    <section>
+                      <h4 className="text-[10px] uppercase tracking-widest text-slate-500 font-mono mb-4">Key Findings</h4>
+                      <ul className="space-y-3">
+                        {result.key_findings?.map((item: string, i: number) => (
+                          <li key={i} className="flex gap-3 text-sm text-slate-300">
+                            <span className="w-1.5 h-1.5 rounded-full bg-slate-700 mt-1.5 shrink-0" />
+                            {item}
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
+
+                    <section>
+                      <h4 className="text-[10px] uppercase tracking-widest text-amber-500/80 font-mono mb-4">Action Items</h4>
+                      <ul className="space-y-3">
+                        {result.action_items?.map((item: string, i: number) => (
+                          <li key={i} className="flex gap-3 text-sm text-slate-300">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500/40 mt-1.5 shrink-0" />
+                            {item}
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
+                  </div>
+
+                  {/* Regulatory & Inquiry */}
+                  <div className="grid grid-cols-2 gap-8">
+                    <section className="bg-slate-900/40 rounded-xl p-5 border border-white/5">
+                      <h4 className="text-[10px] uppercase tracking-widest text-slate-500 font-mono mb-4">Regulatory Implications</h4>
+                      <ul className="space-y-3">
+                        {result.regulatory_implications?.map((item: string, i: number) => (
+                          <li key={i} className="text-sm text-slate-400 italic leading-relaxed">
+                            "{item}"
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
+
+                    <section className="bg-purple-500/5 rounded-xl p-5 border border-purple-500/10">
+                      <h4 className="text-[10px] uppercase tracking-widest text-purple-400 font-mono mb-4">Guided Inquiry</h4>
+                      <ul className="space-y-3">
+                        {result.guided_inquiry_questions?.map((item: string, i: number) => (
+                          <li key={i} className="text-sm text-slate-300 font-medium">
+                            <span className="text-purple-500 mr-2">Q.</span> {item}
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
+                  </div>
               </div>
             </div>
           ) : (

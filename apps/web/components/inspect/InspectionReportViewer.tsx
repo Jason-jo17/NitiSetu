@@ -1,4 +1,8 @@
+import DOMPurify from "dompurify";
+
 export function InspectionReportViewer({ htmlContent }: { htmlContent: string }) {
+  const sanitizedHtml = typeof window !== 'undefined' ? DOMPurify.sanitize(htmlContent) : htmlContent;
+
   return (
     <div className="h-full rounded-xl border flex flex-col bg-slate-50 overflow-hidden" style={{ borderColor: 'var(--border-subtle)' }}>
       <div className="p-4 border-b bg-white text-slate-800 flex justify-between items-center shadow-sm z-10">
@@ -13,7 +17,7 @@ export function InspectionReportViewer({ htmlContent }: { htmlContent: string })
         <div 
           className="prose prose-sm max-w-none text-slate-800 font-serif leading-relaxed inspection-markdown"
           style={{ maxWidth: '800px', margin: '0 auto', background: 'white', padding: '40px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', borderRadius: '4px' }}
-          dangerouslySetInnerHTML={{ __html: htmlContent }}
+          dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
         />
       </div>
       

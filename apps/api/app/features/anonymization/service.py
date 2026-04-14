@@ -180,6 +180,20 @@ class AnonymizationService:
         "IN_CTRI", "IN_CDSCO_APP", "MEDICAL_LICENSE", "URL"
     ]
     
+    async def get_pii_preview(self, text: str) -> Dict[str, Any]:
+        """Lightweight PII detection for UI previews."""
+        analyzer = get_analyzer()
+        results = analyzer.analyze(text=text, entities=self.ENTITIES_TO_DETECT, language="en")
+        
+        entity_breakdown: Dict[str, int] = {}
+        for r in results:
+            entity_breakdown[r.entity_type] = entity_breakdown.get(r.entity_type, 0) + 1
+            
+        return {
+            "pii_count": len(results),
+            "entity_breakdown": entity_breakdown
+        }
+    
     async def anonymize(
         self,
         text: str,
@@ -229,6 +243,20 @@ class AnonymizationService:
         # Step 3: Compute anonymization quality metrics
         metrics = self._compute_metrics(results, text)
         
+        # Step 4: Log to Audit Log for Observability
+        try:
+            get_supabase().table("audit_log").insert({
+                "action": "ANONYMIZE",
+                "entity_type": "document",
+                "details": {
+                    "pii_detected": len(results),
+                    "entity_breakdown": entity_breakdown,
+                    "k_anonymity": metrics.get("k_anonymity_score")
+                }
+            }).execute()
+        except Exception as e:
+            logger.warning(f"Failed to write audit log: {e}")
+
         return {
             "original_length": len(text),
             "anonymized_text": irreversible_text,

@@ -7,6 +7,16 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+_model = None
+
+def get_similarity_model():
+    global _model
+    if _model is None:
+        from sentence_transformers import SentenceTransformer
+        logger.info("Loading SentenceTransformer model (all-MiniLM-L6-v2)...")
+        _model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
+    return _model
+
 class ComparisonService:
     
     COMPARISON_SYSTEM = """You are NitiSetu's document comparison engine.
@@ -79,13 +89,13 @@ Return JSON:
     
     def _compute_semantic_similarity(self, text_v1: str, text_v2: str) -> float:
         try:
-            from sentence_transformers import SentenceTransformer
             from sklearn.metrics.pairwise import cosine_similarity
             import numpy as np
             
-            model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
-            emb1 = model.encode([text_v1[:2000]])
-            emb2 = model.encode([text_v2[:2000]])
+            model = get_similarity_model()
+            # Increase sample to 5000 chars for better semantic assessment
+            emb1 = model.encode([text_v1[:5000]])
+            emb2 = model.encode([text_v2[:5000]])
             score = cosine_similarity(emb1, emb2)[0][0]
             return round(float(score), 4)
         except Exception as e:

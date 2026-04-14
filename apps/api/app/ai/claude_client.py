@@ -22,19 +22,45 @@ class BridgeLayerAI:
         temperature: float = 0.1,
         prefill: str = None
     ) -> str:
-        """Single completion with structured regulatory prompting."""
+        """Single completion with structured regulatory prompting and exponential backoff retries."""
+        import asyncio
+        from anthropic import APIError, APIStatusError, APITimeoutError
+        
         messages = [{"role": "user", "content": user}]
         if prefill:
             messages.append({"role": "assistant", "content": prefill})
             
-        response = await self.client.messages.create(
-            model=self.model,
-            max_tokens=max_tokens,
-            temperature=temperature,
-            system=system,
-            messages=messages
-        )
-        return response.content[0].text
+        max_retries = 3
+        base_delay = 2
+        
+        for attempt in range(max_retries):
+            try:
+                response = await self.client.messages.create(
+                    model=self.model,
+                    max_tokens=max_tokens,
+                    temperature=temperature,
+                    system=system,
+                    messages=messages,
+                    timeout=60.0 # 60 second timeout
+                )
+                return response.content[0].text
+            except (APITimeoutError, APIStatusError) as e:
+                # Retry on timeouts or 5xx errors (like 529 overloaded)
+                if attempt == max_retries - 1:
+                    logger.error(f"Claude API final attempt failed: {e}")
+                    raise
+                
+                # Check if it's a retryable status
+                status_code = getattr(e, "status_code", 0)
+                if status_code >= 500 or status_code == 429 or isinstance(e, APITimeoutError):
+                    delay = base_delay * (2 ** attempt)
+                    logger.warning(f"Claude API effort {attempt+1} failed ({status_code}). Retrying in {delay}s...")
+                    await asyncio.sleep(delay)
+                else:
+                    raise
+            except APIError as e:
+                logger.error(f"Claude API non-retryable error: {e}")
+                raise
     
     async def complete_json(self, system: str, user: str, max_tokens: int = 4096) -> dict:
         """Complete and parse JSON output using optimal Anthropic prefill."""

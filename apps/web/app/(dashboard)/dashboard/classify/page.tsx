@@ -1,21 +1,33 @@
 "use client";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { AlertTriangle, Tag, Clock, CheckCircle } from "lucide-react";
 import { api } from "@/lib/api";
 import { DocumentSelector } from "@/components/shared/DocumentSelector";
 import { toast } from "sonner";
+import { ProcessingOverlay } from "@/components/shared/ProcessingOverlay";
 import { SeverityBadge } from "@/components/classify/SeverityBadge";
 import { PriorityScore } from "@/components/classify/PriorityScore";
 
 export default function ClassifyPage() {
   const [docId, setDocId] = useState<string | null>(null);
   const [result, setResult] = useState<any>(null);
+  const [jobStatus, setJobStatus] = useState<string>("idle");
+  const [jobProgress, setJobProgress] = useState<number>(0);
+
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+    };
+  }, []);
 
   const classifyMutation = useMutation({
-    mutationFn: () => api.post("/api/classification/sae", { document_id: docId }),
+    mutationFn: () => api.post("/api/classify/process", { document_id: docId }),
     onSuccess: (data) => {
       if (data.job_id) {
+        setJobStatus("pending");
         pollJob(data.job_id);
       } else {
         setResult(data);
@@ -24,21 +36,40 @@ export default function ClassifyPage() {
     onError: () => toast.error("Classification failed")
   });
 
-  const pollJob = async (jobId: string) => {
-    const poll = setInterval(async () => {
-      const job = await api.get(`/api/jobs/${jobId}`);
-      if (job.status === "completed") {
-        clearInterval(poll);
-        setResult(job.result);
-      } else if (job.status === "failed") {
-        clearInterval(poll);
-        toast.error(job.error);
+  const pollJob = (jobId: string) => {
+    if (pollingRef.current) clearInterval(pollingRef.current);
+    
+    pollingRef.current = setInterval(async () => {
+      try {
+        const job = await api.get(`/api/jobs/${jobId}`);
+        setJobStatus(job.status);
+        setJobProgress(job.progress || 0);
+
+        if (job.status === "completed") {
+          if (pollingRef.current) clearInterval(pollingRef.current);
+          setResult(job.result);
+          toast.success("Classification complete");
+        } else if (job.status === "failed") {
+          if (pollingRef.current) clearInterval(pollingRef.current);
+          toast.error(job.error || "Processing failed");
+        }
+      } catch (err) {
+        if (pollingRef.current) clearInterval(pollingRef.current);
+        toast.error("Lost connection to processing engine");
       }
     }, 2000);
   };
 
   return (
     <div className="p-8">
+      <ProcessingOverlay 
+        isVisible={jobStatus === "processing" || jobStatus === "pending"}
+        title="Classifying SAE..."
+        progress={jobProgress}
+        statusMessage={jobProgress < 30 ? "Analyzing Severity & Causality" : jobProgress < 80 ? "Triaging Medical Data" : "Finalizing Priority Scoring"}
+        color="violet"
+        engine="SAFETY-ORCHESTRATOR"
+      />
       <div className="mb-8">
         <h1 style={{ fontFamily: 'var(--font-mono)', fontSize: 20, fontWeight: 600, color: '#F1F5F9' }}>
           SAE Classification & Triaging

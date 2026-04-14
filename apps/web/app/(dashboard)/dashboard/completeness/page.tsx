@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { CheckSquare, AlertCircle, XCircle, CheckCircle, HelpCircle } from "lucide-react";
 import { motion } from "framer-motion";
@@ -8,6 +8,7 @@ import { DocumentSelector } from "@/components/shared/DocumentSelector";
 import { GuidedInquiryPanel } from "@/components/completeness/GuidedInquiryPanel";
 import { FieldStatusTable } from "@/components/completeness/FieldStatusTable";
 import { toast } from "sonner";
+import { ProcessingOverlay } from "@/components/shared/ProcessingOverlay";
 
 const FORM_TYPES = [
   { value: "CT_04", label: "Form CT-04", desc: "Clinical Trial New Drug Application" },
@@ -27,14 +28,25 @@ export default function CompletenessPage() {
   const [docId, setDocId] = useState<string | null>(null);
   const [formType, setFormType] = useState("CT_04");
   const [result, setResult] = useState<any>(null);
+  const [jobStatus, setJobStatus] = useState<string>("idle");
+  const [jobProgress, setJobProgress] = useState<number>(0);
+
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+    };
+  }, []);
 
   const assessMutation = useMutation({
-    mutationFn: () => api.post("/api/completeness/assess", {
+    mutationFn: () => api.post("/api/completeness/process", {
       document_id: docId,
       form_type: formType
     }),
     onSuccess: (data) => {
       if (data.job_id) {
+        setJobStatus("pending");
         pollJob(data.job_id);
       } else {
         setResult(data);
@@ -43,15 +55,26 @@ export default function CompletenessPage() {
     onError: () => toast.error("Completeness assessment failed")
   });
 
-  const pollJob = async (jobId: string) => {
-    const poll = setInterval(async () => {
-      const job = await api.get(`/api/jobs/${jobId}`);
-      if (job.status === "completed") {
-        clearInterval(poll);
-        setResult(job.result);
-      } else if (job.status === "failed") {
-        clearInterval(poll);
-        toast.error(job.error);
+  const pollJob = (jobId: string) => {
+    if (pollingRef.current) clearInterval(pollingRef.current);
+    
+    pollingRef.current = setInterval(async () => {
+      try {
+        const job = await api.get(`/api/jobs/${jobId}`);
+        setJobStatus(job.status);
+        setJobProgress(job.progress || 0);
+
+        if (job.status === "completed") {
+          if (pollingRef.current) clearInterval(pollingRef.current);
+          setResult(job.result);
+          toast.success("Assessment complete");
+        } else if (job.status === "failed") {
+          if (pollingRef.current) clearInterval(pollingRef.current);
+          toast.error(job.error || "Processing failed");
+        }
+      } catch (err) {
+        if (pollingRef.current) clearInterval(pollingRef.current);
+        toast.error("Lost connection to processing engine");
       }
     }, 2000);
   };
@@ -64,6 +87,14 @@ export default function CompletenessPage() {
 
   return (
     <div className="p-8">
+      <ProcessingOverlay 
+        isVisible={jobStatus === "processing" || jobStatus === "pending"}
+        title="Assessing Compliance..."
+        progress={jobProgress}
+        statusMessage={jobProgress < 30 ? "Verifying Filing Structure" : jobProgress < 80 ? "Auditing Mandatory Fields" : "Generating Gap Analysis Report"}
+        color="emerald"
+        engine="CDSCO-RULES-2019"
+      />
       <div className="mb-8">
         <h1 style={{ fontFamily: 'var(--font-mono)', fontSize: 20, fontWeight: 600, color: '#F1F5F9' }}>
           Completeness Assessment

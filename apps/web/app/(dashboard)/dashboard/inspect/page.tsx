@@ -1,20 +1,31 @@
 "use client";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { ClipboardList, FileCheck } from "lucide-react";
 import { api } from "@/lib/api";
 import { DocumentSelector } from "@/components/shared/DocumentSelector";
 import { InspectionReportViewer } from "@/components/inspect/InspectionReportViewer";
 import { toast } from "sonner";
+import { ProcessingOverlay } from "@/components/shared/ProcessingOverlay";
 
 export default function InspectPage() {
   const [docId, setDocId] = useState<string | null>(null);
   const [result, setResult] = useState<any>(null);
+  const [jobStatus, setJobStatus] = useState<string>("idle");
+  const [jobProgress, setJobProgress] = useState<number>(0);
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+    };
+  }, []);
 
   const inspectMutation = useMutation({
-    mutationFn: () => api.post("/api/inspection/process", { document_id: docId }),
+    mutationFn: () => api.post("/api/inspect/process", { document_id: docId }),
     onSuccess: (data) => {
       if (data.job_id) {
+        setJobStatus("pending");
         pollJob(data.job_id);
       } else {
         setResult(data);
@@ -23,21 +34,40 @@ export default function InspectPage() {
     onError: () => toast.error("Inspection processing failed")
   });
 
-  const pollJob = async (jobId: string) => {
-    const poll = setInterval(async () => {
-      const job = await api.get(`/api/jobs/${jobId}`);
-      if (job.status === "completed") {
-        clearInterval(poll);
-        setResult(job.result);
-      } else if (job.status === "failed") {
-        clearInterval(poll);
-        toast.error(job.error);
+  const pollJob = (jobId: string) => {
+    if (pollingRef.current) clearInterval(pollingRef.current);
+    
+    pollingRef.current = setInterval(async () => {
+      try {
+        const job = await api.get(`/api/jobs/${jobId}`);
+        setJobStatus(job.status);
+        setJobProgress(job.progress || 0);
+
+        if (job.status === "completed") {
+          if (pollingRef.current) clearInterval(pollingRef.current);
+          setResult(job.result);
+          toast.success("Final inspection report generated");
+        } else if (job.status === "failed") {
+          if (pollingRef.current) clearInterval(pollingRef.current);
+          toast.error(job.error || "Processing failed");
+        }
+      } catch (err) {
+        if (pollingRef.current) clearInterval(pollingRef.current);
+        toast.error("Lost connection to processing engine");
       }
     }, 2000);
   };
 
   return (
     <div className="p-8 h-full flex flex-col">
+      <ProcessingOverlay 
+        isVisible={jobStatus === "processing" || jobStatus === "pending"}
+        title="Synthesizing Report..."
+        progress={jobProgress}
+        statusMessage={jobProgress < 30 ? "Verifying Clinical Observations" : jobProgress < 80 ? "Structuring Deficiency Narratives" : "Finalizing Document Formatting"}
+        color="amber"
+        engine="REGULATORY-OS v4.0"
+      />
       <div className="mb-8 flex-shrink-0">
         <h1 style={{ fontFamily: 'var(--font-mono)', fontSize: 20, fontWeight: 600, color: '#F1F5F9' }}>
           GCP Inspection Report Generator

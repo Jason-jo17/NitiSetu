@@ -91,3 +91,109 @@ ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
 ALTER TABLE processing_jobs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE token_vault ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_log ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sae_reports ENABLE ROW LEVEL SECURITY;
+ALTER TABLE checklist_templates ENABLE ROW LEVEL SECURITY;
+
+-- Documents: Users can only see and insert their own uploads
+CREATE POLICY "Users can only see their own docs" ON documents 
+FOR SELECT USING (auth.uid()::text = uploaded_by);
+
+CREATE POLICY "Users can only insert their own docs" ON documents 
+FOR INSERT WITH CHECK (auth.uid()::text = uploaded_by);
+
+
+CREATE POLICY "Users can only delete their own docs" ON documents 
+FOR DELETE USING (auth.uid()::text = uploaded_by);
+
+-- Processing Jobs: Users can only see jobs for their docs
+CREATE POLICY "Users can only see jobs for their docs" ON processing_jobs
+FOR ALL USING (
+  document_id IN (
+    SELECT id FROM documents WHERE auth.uid()::text = uploaded_by
+  )
+);
+
+-- SAE Reports: Users can only see reports for their docs
+CREATE POLICY "Users can only see reports for their docs" ON sae_reports
+FOR ALL USING (
+  document_id IN (
+    SELECT id FROM documents WHERE auth.uid()::text = uploaded_by
+  )
+);
+
+-- Checklist Templates: Authenticated users can read only
+CREATE POLICY "Authenticated users can read templates" ON checklist_templates
+FOR SELECT TO authenticated USING (true);
+
+-- Token Vault: No policy defined (Default Deny for Client-side, Service Role only)
+-- Audit Log: Administrative read only (or per-user if logged)
+CREATE POLICY "Users can see their own audit logs" ON audit_log
+FOR SELECT USING (auth.uid()::text = user_id);
+
+CREATE POLICY "Users can insert their own audit logs" ON audit_log
+FOR INSERT WITH CHECK (auth.uid()::text = user_id OR user_id IS NULL);
+
+-- Profiles table for RBAC
+CREATE TABLE profiles (
+    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    email TEXT,
+    full_name TEXT,
+    role TEXT DEFAULT 'reviewer' CHECK (role IN ('admin', 'reviewer', 'inspector', 'readonly')),
+    designation TEXT,
+    zone TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Enable RLS on Profiles
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can see their own profile" ON profiles 
+FOR SELECT USING (auth.uid() = id);
+
+CREATE POLICY "Users can update their own profile" ON profiles 
+FOR UPDATE USING (auth.uid() = id);
+
+-- Trigger to handle new user signup
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger AS $$
+BEGIN
+  INSERT INTO public.profiles (id, email, full_name, role)
+  VALUES (new.id, new.email, new.raw_user_meta_data->>'full_name', 'reviewer');
+  RETURN new;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- Semantic Search Function
+CREATE OR REPLACE FUNCTION match_documents (
+  query_embedding vector(384),
+  match_threshold float,
+  match_count int
+)
+RETURNS TABLE (
+  id UUID,
+  filename TEXT,
+  original_filename TEXT,
+  doc_type TEXT,
+  similarity FLOAT
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT
+    documents.id,
+    documents.filename,
+    documents.original_filename,
+    documents.doc_type,
+    1 - (documents.embedding <=> query_embedding) AS similarity
+  FROM documents
+  WHERE 1 - (documents.embedding <=> query_embedding) > match_threshold
+  ORDER BY documents.embedding <=> query_embedding
+  LIMIT match_count;
+END;
+$$;

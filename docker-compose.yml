@@ -4,7 +4,7 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - "6380:6379"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -19,20 +19,26 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     environment:
       - DATABASE_URL=${DATABASE_URL}
       - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - REDIS_URL=redis://redis:6379/0
-      - SECRET_KEY=${SECRET_KEY}
+      - SECRET_KEY=Jul6DMFmrggA6HmxvZHi/y7YT/K8ghYCg5stzItgKf6WUth5udbAQW+MY5orIns0NIicw30oskXFdikdiKstRw==
+      - SUPABASE_JWT_SECRET=Jul6DMFmrggA6HmxvZHi/y7YT/K8ghYCg5stzItgKf6WUth5udbAQW+MY5orIns0NIicw30oskXFdikdiKstRw==
     volumes:
       - ./apps/api:/app
       - model_cache:/app/.cache
     depends_on:
       redis:
         condition: service_healthy
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
 
   worker:
     build:
@@ -44,6 +50,7 @@ services:
       - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - REDIS_URL=redis://redis:6379/0
+      - SUPABASE_JWT_SECRET=Jul6DMFmrggA6HmxvZHi/y7YT/K8ghYCg5stzItgKf6WUth5udbAQW+MY5orIns0NIicw30oskXFdikdiKstRw==
     volumes:
       - ./apps/api:/app
       - model_cache:/app/.cache
@@ -56,6 +63,9 @@ services:
     build:
       context: ./apps/web
       dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_SUPABASE_URL=${SUPABASE_URL}
+        - NEXT_PUBLIC_SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
     ports:
       - "3000:3000"
     environment:
@@ -63,7 +73,8 @@ services:
       - NEXT_PUBLIC_SUPABASE_URL=${SUPABASE_URL}
       - NEXT_PUBLIC_SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
     depends_on:
-      - api
+      api:
+        condition: service_healthy
 
 volumes:
   redis_data:

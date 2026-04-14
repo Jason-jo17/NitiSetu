@@ -1,7 +1,8 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from pydantic import BaseModel
 from app.core.database import get_supabase
 from app.workers.tasks import process_inspection
+from app.core.limiter import limiter
 import uuid
 
 router = APIRouter()
@@ -10,14 +11,16 @@ class InspectRequest(BaseModel):
     document_id: str
 
 @router.post("/process")
-async def process(req: InspectRequest):
+@limiter.limit("2/minute")
+async def process(request: Request, req: InspectRequest):
     sb = get_supabase()
     job_id = str(uuid.uuid4())
     sb.table("processing_jobs").insert({
         "id": job_id,
         "document_id": req.document_id,
-        "type": "inspection",
-        "status": "pending"
+        "feature_type": "inspection",
+        "status": "pending",
+        "progress": 0
     }).execute()
     
     process_inspection.delay(job_id, req.document_id)

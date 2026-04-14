@@ -31,12 +31,16 @@ export default function UploadPage() {
     mutationFn: async (uploadFile: UploadedFile) => {
       const formData = new FormData();
       formData.append("file", uploadFile.file);
-      return api.upload("/api/documents/upload", formData);
+      return api.upload("/api/documents/upload", formData, (pct) => {
+        setFiles(prev => prev.map(f => 
+          f.file === uploadFile.file ? { ...f, progress: pct, status: 'uploading' } : f
+        ));
+      });
     },
-    onSuccess: (data, uploadFile) => {
+    onSuccess: (data: any, uploadFile) => {
       setFiles(prev => prev.map(f => 
         f.file === uploadFile.file 
-          ? { ...f, status: 'done', documentId: data.document_id } 
+          ? { ...f, status: 'done', progress: 100, documentId: data.document_id } 
           : f
       ));
       toast.success(`${uploadFile.file.name} uploaded successfully`);
@@ -129,12 +133,20 @@ export default function UploadPage() {
                     {(f.file.size / 1024 / 1024).toFixed(2)} MB
                   </p>
                   {f.status === 'uploading' && (
-                    <div className="mt-1 h-1 rounded-full overflow-hidden" style={{ background: 'var(--bg-overlay)' }}>
-                      <motion.div
-                        className="h-full rounded-full"
-                        style={{ background: 'var(--accent-primary)', width: `${f.progress}%` }}
-                        animate={{ width: `${f.progress}%` }}
-                      />
+                    <div className="mt-2 space-y-1">
+                      <div className="flex justify-between items-center text-[9px] font-mono text-slate-500 uppercase tracking-wider">
+                        <span>Uploading...</span>
+                        <span>{f.progress}%</span>
+                      </div>
+                      <div className="h-1 rounded-full overflow-hidden" style={{ background: 'var(--bg-overlay)' }}>
+                        <motion.div
+                          className="h-full rounded-full"
+                          style={{ background: 'var(--accent-primary)' }}
+                          initial={{ width: 0 }}
+                          animate={{ width: `${f.progress}%` }}
+                          transition={{ duration: 0.1 }}
+                        />
+                      </div>
                     </div>
                   )}
                 </div>

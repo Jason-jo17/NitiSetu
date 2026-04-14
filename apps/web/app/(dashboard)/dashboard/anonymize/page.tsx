@@ -1,8 +1,8 @@
 "use client";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { motion } from "framer-motion";
-import { Shield, Eye, EyeOff, AlertTriangle, CheckCircle, Info } from "lucide-react";
+import { Eye, EyeOff, Shield } from "lucide-react";
+import { ProcessingOverlay } from "@/components/shared/ProcessingOverlay";
 import { api } from "@/lib/api";
 import { DocumentSelector } from "@/components/shared/DocumentSelector";
 import { EntityBadge } from "@/components/anonymize/EntityBadge";
@@ -13,8 +13,11 @@ import { toast } from "sonner";
 export default function AnonymizePage() {
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
   const [mode, setMode] = useState<"both" | "pseudonymize" | "irreversible">("both");
+  const [jobProgress, setJobProgress] = useState(0);
+  const [jobStatus, setJobStatus] = useState<string | null>(null);
   const [result, setResult] = useState<any>(null);
   const [showOriginal, setShowOriginal] = useState(false);
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
 
   const previewQuery = useQuery({
     queryKey: ["pii-preview", selectedDocId],
@@ -22,33 +25,61 @@ export default function AnonymizePage() {
     enabled: !!selectedDocId
   });
 
+  const getStatusMessage = (progress: number) => {
+    if (progress < 20) return "Queueing task...";
+    if (progress < 40) return "Loading document text...";
+    if (progress < 80) return "Detecting and masking PII...";
+    if (progress < 100) return "Finalising results...";
+    return "Complete";
+  };
+
   const anonymizeMutation = useMutation({
-    mutationFn: () => api.post("/api/anonymize/document", {
+    mutationFn: () => api.post("/api/anonymize/process", {
       document_id: selectedDocId,
-      anonymization_mode: mode
+      mode: mode
     }),
     onSuccess: (data) => {
       toast.success("Document anonymization queued");
-      // Poll for job completion
+      setJobProgress(0);
+      setJobStatus("Queued");
       pollJob(data.job_id);
     }
   });
 
-  const pollJob = async (jobId: string) => {
-    const poll = setInterval(async () => {
-      const job = await api.get(`/api/jobs/${jobId}`);
-      if (job.status === "completed") {
-        clearInterval(poll);
-        setResult(job.result);
-      } else if (job.status === "failed") {
-        clearInterval(poll);
-        toast.error(job.error);
+  const pollJob = (jobId: string) => {
+    if (pollingRef.current) clearInterval(pollingRef.current);
+    
+    pollingRef.current = setInterval(async () => {
+      try {
+        const job = await api.get(`/api/jobs/${jobId}`);
+        setJobProgress(job.progress || 0);
+        setJobStatus(job.status);
+
+        if (job.status === "completed") {
+          if (pollingRef.current) clearInterval(pollingRef.current);
+          setResult(job.result);
+          toast.success("Anonymisation complete");
+        } else if (job.status === "failed") {
+          if (pollingRef.current) clearInterval(pollingRef.current);
+          toast.error(job.error || "Processing failed");
+        }
+      } catch (err) {
+        if (pollingRef.current) clearInterval(pollingRef.current);
+        toast.error("Lost connection to processing engine");
       }
     }, 2000);
   };
 
   return (
     <div className="p-8">
+      {/* Progress Overlay if computing */}
+      <ProcessingOverlay 
+        isVisible={jobStatus === "processing" || jobStatus === "pending"}
+        title="ANONYMISING..."
+        progress={jobProgress}
+        statusMessage={getStatusMessage(jobProgress)}
+        color="amber"
+      />
       <div className="mb-8">
         <h1 style={{ fontFamily: 'var(--font-mono)', fontSize: 20, fontWeight: 600, color: '#F1F5F9' }}>
           Data Anonymisation

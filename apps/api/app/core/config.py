@@ -1,20 +1,22 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import List
+from typing import List, Optional
 
 class Settings(BaseSettings):
     # App
     APP_NAME: str = "NitiSetu"
+    ENVIRONMENT: str = "development"
     SECRET_KEY: str
     ALLOWED_ORIGINS: List[str] = ["http://localhost:3000", "https://nitisetu.acolyte.ai"]
     
     # Supabase
     SUPABASE_URL: str
     SUPABASE_SERVICE_KEY: str
+    SUPABASE_JWT_SECRET: Optional[str] = None
     DATABASE_URL: str
     
     # Anthropic
     ANTHROPIC_API_KEY: str
-    CLAUDE_MODEL: str = "claude-sonnet-4-20250514"
+    CLAUDE_MODEL: str = "claude-3-5-sonnet-20241022"
     CLAUDE_MAX_TOKENS: int = 8192
     
     # Redis/Celery

@@ -58,18 +58,31 @@ DOCUMENT:
         }
     
     def _compute_rouge(self, hypothesis: str, reference: str) -> Dict[str, float]:
+        result = {"rouge_1": None, "rouge_2": None, "rouge_l": None, "bert_score": None}
+        
         try:
             from rouge_score import rouge_scorer
             scorer = rouge_scorer.RougeScorer(['rouge1', 'rouge2', 'rougeL'], use_stemmer=True)
             scores = scorer.score(reference, hypothesis)
-            return {
-                "rouge_1": round(scores['rouge1'].fmeasure, 4),
-                "rouge_2": round(scores['rouge2'].fmeasure, 4),
-                "rouge_l": round(scores['rougeL'].fmeasure, 4),
-                "bert_score": None  # Computed separately in evaluation pipeline
-            }
+            result["rouge_1"] = round(scores['rouge1'].fmeasure, 4)
+            result["rouge_2"] = round(scores['rouge2'].fmeasure, 4)
+            result["rouge_l"] = round(scores['rougeL'].fmeasure, 4)
         except Exception as e:
             logger.warning(f"ROUGE computation failed: {e}")
-            return {"rouge_1": None, "rouge_2": None, "rouge_l": None, "bert_score": None}
+        
+        # Add BERTScore computation
+        try:
+            from bert_score import score as bert_score
+            P, R, F1 = bert_score(
+                [hypothesis], [reference], 
+                lang="en", 
+                verbose=False,
+                rescale_with_baseline=True
+            )
+            result["bert_score"] = round(F1.item(), 4)
+        except Exception as e:
+            logger.warning(f"BERTScore computation failed: {e}")
+        
+        return result
 
 summarization_service = SummarizationService()

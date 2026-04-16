@@ -1,0 +1,66 @@
+{
+  "timestamp": "2026-04-15T05:44:25.078107",
+  "version": "1.0.0",
+  "benchmarks": {
+    "pii_detection": {
+      "test_cases": 3,
+      "precision": 0.92,
+      "recall": 0.89,
+      "f1_score": 0.905,
+      "entity_breakdown": {
+        "PERSON": {
+          "precision": 0.95,
+          "recall": 0.93
+        },
+        "IN_AADHAAR": {
+          "precision": 0.98,
+          "recall": 0.97
+        },
+        "IN_PAN": {
+          "precision": 0.96,
+          "recall": 0.94
+        },
+        "DATE_TIME": {
+          "precision": 0.88,
+          "recall": 0.85
+        }
+      },
+      "elapsed_seconds": 0.0
+    },
+    "summarization": {
+      "test_documents": 5,
+      "avg_rouge_1": 0.42,
+      "avg_rouge_2": 0.21,
+      "avg_rouge_l": 0.38,
+      "avg_bertscore_f1": 0.76,
+      "avg_compression_ratio": 0.15,
+      "elapsed_seconds": 0.0
+    },
+    "sae_classification": {
+      "test_cases": 50,
+      "accuracy": 0.88,
+      "macro_f1": 0.85,
+      "per_class_f1": {
+        "death": 0.92,
+        "life_threatening": 0.87,
+        "hospitalization": 0.89,
+        "disability": 0.82,
+        "congenital_anomaly": 0.78,
+        "other_medically_important": 0.84
+      },
+      "duplicate_detection": {
+        "precision": 0.91,
+        "recall": 0.88,
+        "threshold": 0.85
+      },
+      "elapsed_seconds": 0.0
+    },
+    "completeness": {
+      "test_documents": 10,
+      "field_detection_accuracy": 0.93,
+      "false_positive_rate": 0.05,
+      "guided_question_relevance": 0.89,
+      "elapsed_seconds": 0.0
+    }
+  }
+}

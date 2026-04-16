@@ -28,6 +28,7 @@ pycanon
 
 # NLP
 transformers
+--extra-index-url https://download.pytorch.org/whl/cpu
 torch
 scispacy
 gliner

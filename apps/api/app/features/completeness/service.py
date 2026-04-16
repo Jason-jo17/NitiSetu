@@ -43,6 +43,60 @@ CT04_CHECKLIST = {
     ]
 }
 
+# CDSCO Form CT-06 (Clinical Trial Amendment) mandatory fields
+CT06_CHECKLIST = {
+    "administrative": [
+        {"field": "amendment_number", "mandatory": True, "regulation": "NDCTR 2019"},
+        {"field": "original_approval_reference", "mandatory": True, "regulation": "CDSCO Portal"},
+        {"field": "ctri_registration", "mandatory": True, "regulation": "ICMR Guidelines 2017"},
+        {"field": "ethics_committee_approval_amendment", "mandatory": True, "regulation": "Schedule Y"},
+        {"field": "protocol_version_changes", "mandatory": True, "regulation": "ICH E6(R3)"},
+    ],
+    "amendment_details": [
+        {"field": "nature_of_amendment", "mandatory": True, "regulation": "NDCTR 2019 Rule 14"},
+        {"field": "justification_for_changes", "mandatory": True, "regulation": "ICH E6(R3)"},
+        {"field": "impact_on_subject_safety", "mandatory": True, "regulation": "CDSCO Guidelines"},
+        {"field": "impact_on_study_integrity", "mandatory": True, "regulation": "ICH E6(R3)"},
+        {"field": "revised_informed_consent", "mandatory": False, "regulation": "Schedule Y"},
+    ],
+    "regulatory": [
+        {"field": "updated_investigator_brochure", "mandatory": False, "regulation": "ICH E6(R3)"},
+        {"field": "updated_protocol_synopsis", "mandatory": True, "regulation": "CDSCO"},
+        {"field": "comparison_document", "mandatory": True, "regulation": "CDSCO"},
+    ]
+}
+
+# MD Online (Medical Device Application) mandatory fields
+MD_DEVICE_CHECKLIST = {
+    "administrative": [
+        {"field": "application_form_md_01", "mandatory": True, "regulation": "MDR 2017"},
+        {"field": "manufacturing_license", "mandatory": True, "regulation": "MDR 2017 Rule 8"},
+        {"field": "free_sale_certificate", "mandatory": True, "regulation": "MDR 2017"},
+        {"field": "gmp_certificate", "mandatory": True, "regulation": "ISO 13485"},
+        {"field": "ce_marking_certificate", "mandatory": False, "regulation": "EU MDR"},
+        {"field": "declaration_of_conformity", "mandatory": True, "regulation": "MDR 2017"},
+    ],
+    "technical": [
+        {"field": "device_master_file", "mandatory": True, "regulation": "MDR 2017 Rule 6"},
+        {"field": "risk_analysis_iso_14971", "mandatory": True, "regulation": "ISO 14971"},
+        {"field": "clinical_evaluation_report", "mandatory": True, "regulation": "MEDDEV 2.7/1"},
+        {"field": "biocompatibility_test_reports", "mandatory": True, "regulation": "ISO 10993"},
+        {"field": "electromagnetic_compatibility", "mandatory": False, "regulation": "IEC 60601"},
+        {"field": "software_documentation", "mandatory": False, "regulation": "IEC 62304"},
+        {"field": "labeling_and_ifu", "mandatory": True, "regulation": "MDR 2017 Rule 18"},
+    ],
+    "clinical": [
+        {"field": "clinical_investigation_plan", "mandatory": False, "regulation": "ISO 14155"},
+        {"field": "ethics_committee_approval", "mandatory": False, "regulation": "ICMR"},
+        {"field": "informed_consent_form", "mandatory": False, "regulation": "Schedule Y"},
+    ],
+    "quality": [
+        {"field": "quality_management_system", "mandatory": True, "regulation": "ISO 13485"},
+        {"field": "post_market_surveillance_plan", "mandatory": True, "regulation": "MDR 2017 Rule 17"},
+        {"field": "vigilance_reporting_procedure", "mandatory": True, "regulation": "MDR 2017 Rule 16"},
+    ]
+}
+
 SAE_CIOMS_CHECKLIST = {
     "patient": [
         {"field": "patient_initials", "mandatory": True, "regulation": "CIOMS Form I"},
@@ -70,7 +124,9 @@ SAE_CIOMS_CHECKLIST = {
 
 CHECKLISTS = {
     "CT_04": CT04_CHECKLIST,
+    "CT_06": CT06_CHECKLIST,
     "SAE_CIOMS": SAE_CIOMS_CHECKLIST,
+    "MD_DEVICE": MD_DEVICE_CHECKLIST,
 }
 
 

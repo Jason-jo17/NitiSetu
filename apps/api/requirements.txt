@@ -42,13 +42,8 @@ python-docx
 paddlepaddle
 paddleocr
 
-# Evaluation metrics
-rouge-score
-bert-score
-jiwer
-seqeval
-scikit-learn
-scipy
+# Evaluation metrics (Disabled for production size optimization)
+# rouge-score, bert-score, jiwer, seqeval, scikit-learn, scipy
 
 # Utilities
 pydantic

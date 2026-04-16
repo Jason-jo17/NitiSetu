@@ -89,14 +89,23 @@ Return JSON:
     
     def _compute_semantic_similarity(self, text_v1: str, text_v2: str) -> float:
         try:
-            from sklearn.metrics.pairwise import cosine_similarity
             import numpy as np
             
             model = get_similarity_model()
-            # Increase sample to 5000 chars for better semantic assessment
             emb1 = model.encode([text_v1[:5000]])
             emb2 = model.encode([text_v2[:5000]])
-            score = cosine_similarity(emb1, emb2)[0][0]
+            
+            # Manual cosine similarity: dot(A, B) / (norm(A) * norm(B))
+            A = emb1[0]
+            B = emb2[0]
+            
+            norm_a = np.linalg.norm(A)
+            norm_b = np.linalg.norm(B)
+            
+            if norm_a == 0 or norm_b == 0:
+                return 0.0
+                
+            score = np.dot(A, B) / (norm_a * norm_b)
             return round(float(score), 4)
         except Exception as e:
             logger.warning(f"Semantic similarity failed: {e}")

@@ -27,8 +27,17 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-# Download smaller SpaCy model
-RUN python -m spacy download en_core_web_md
+# Download SM SpaCy model (smallest)
+RUN python -m spacy download en_core_web_sm
+
+# CRITICAL: Prune site-packages to remove non-runtime files (tests, docs, etc.)
+RUN find /opt/venv/lib/python3.11/site-packages -type d -name "tests" -exec rm -rf {} + && \
+    find /opt/venv/lib/python3.11/site-packages -type d -name "testing" -exec rm -rf {} + && \
+    find /opt/venv/lib/python3.11/site-packages -type d -name "docs" -exec rm -rf {} + && \
+    find /opt/venv/lib/python3.11/site-packages -type d -name "examples" -exec rm -rf {} + && \
+    find /opt/venv/lib/python3.11/site-packages -name "*.exe" -delete && \
+    find /opt/venv/lib/python3.11/site-packages -name "*.pyc" -delete && \
+    find /opt/venv/lib/python3.11/site-packages -name "__pycache__" -type d -exec rm -rf {} +
 
 # Stage 2: Runtime
 FROM python:3.11-slim
@@ -43,7 +52,7 @@ RUN apt-get update && apt-get install -y \
     poppler-utils \
     tesseract-ocr \
     curl \
-    && rm -rf /var/lib/apt/lists/*
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Copy virtualenv from builder
 COPY --from=builder /opt/venv /opt/venv

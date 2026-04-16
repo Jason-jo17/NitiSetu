@@ -70,16 +70,20 @@ DOCUMENT:
         except Exception as e:
             logger.warning(f"ROUGE computation failed: {e}")
         
-        # Add BERTScore computation
+        # Add BERTScore computation (Optional based on dependency availability)
         try:
-            from bert_score import score as bert_score
-            P, R, F1 = bert_score(
-                [hypothesis], [reference], 
-                lang="en", 
-                verbose=False,
-                rescale_with_baseline=True
-            )
-            result["bert_score"] = round(F1.item(), 4)
+            import importlib.util
+            if importlib.util.find_spec("bert_score"):
+                from bert_score import score as bert_score
+                P, R, F1 = bert_score(
+                    [hypothesis], [reference], 
+                    lang="en", 
+                    verbose=False,
+                    rescale_with_baseline=True
+                )
+                result["bert_score"] = round(F1.item(), 4)
+            else:
+                logger.debug("BERTScore package not installed, skipping metric.")
         except Exception as e:
             logger.warning(f"BERTScore computation failed: {e}")
         

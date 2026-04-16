@@ -1,3 +1,11 @@
+import torch
+# Disable RPC if it's causing issues during initialization
+try:
+    import torch.distributed.rpc
+    torch.distributed.rpc.is_available = lambda: False
+except (ImportError, RuntimeError):
+    pass
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware

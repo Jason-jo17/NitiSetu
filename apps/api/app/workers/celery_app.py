@@ -1,3 +1,11 @@
+import torch
+# Disable RPC to prevent pybind11 initialization conflicts
+try:
+    import torch.distributed.rpc
+    torch.distributed.rpc.is_available = lambda: False
+except (ImportError, RuntimeError):
+    pass
+
 from celery import Celery
 from app.core.config import settings
 

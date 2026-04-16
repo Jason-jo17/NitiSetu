@@ -32,7 +32,6 @@ RUN python -m spacy download en_core_web_sm
 
 # CRITICAL: Prune site-packages to remove non-runtime files (tests, docs, etc.)
 RUN find /opt/venv/lib/python3.11/site-packages -type d -name "tests" -exec rm -rf {} + && \
-    find /opt/venv/lib/python3.11/site-packages -type d -name "testing" -exec rm -rf {} + && \
     find /opt/venv/lib/python3.11/site-packages -type d -name "docs" -exec rm -rf {} + && \
     find /opt/venv/lib/python3.11/site-packages -type d -name "examples" -exec rm -rf {} + && \
     find /opt/venv/lib/python3.11/site-packages -name "*.exe" -delete && \
